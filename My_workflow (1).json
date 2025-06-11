@@ -1,0 +1,214 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c082eae5-44c3-4a24-b8fe-1b69c68d86c1",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1gzE7B_FKGlGRjbdCI3zKJUW4TJzXTrPz2onlKe3Puwc",
+          "mode": "list",
+          "cachedResultName": "Daily report",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gzE7B_FKGlGRjbdCI3zKJUW4TJzXTrPz2onlKe3Puwc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gzE7B_FKGlGRjbdCI3zKJUW4TJzXTrPz2onlKe3Puwc/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        220,
+        0
+      ],
+      "id": "3d372825-0cd6-458c-b03a-eb0e79082fbd",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SOn9DaOfcKGVb0Es",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nconst rowTimestamp = new Date($json[\"Timestamp\"]);\nrowTimestamp.setHours(0, 0, 0, 0);\n\nif (rowTimestamp.getTime() === today.getTime()) {\n  return $json; // Include this item\n}\n\nreturn null; // Skip this item\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "5af7a9b7-301c-4d73-9e5f-69844134cbf3",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const completed = [];\nconst blocked = [];\nconst planned = [];\n\nfor (const item of items) {\n  const status = item.json[\"Task Status\"]?.trim().toLowerCase();\n  const name = item.json[\"Name\"] || \"Unknown\";\n  const task = item.json[\"Task Description\"] || \"No description\";\n\n  const line = `- ${name}: ${task}`;\n\n  if (status === \"completed\") {\n    completed.push(line);\n  } else if (status === \"blocked\") {\n    blocked.push(line);\n  } else if (status === \"planned\") {\n    planned.push(line);\n  }\n}\n\nconst summary = `\n🟢 **Completed Tasks:**\n${completed.length > 0 ? completed.join('\\n') : \"None\"}\n\n🔴 **Blocked Tasks:**\n${blocked.length > 0 ? blocked.join('\\n') : \"None\"}\n\n🟡 **Planned Tasks:**\n${planned.length > 0 ? planned.join('\\n') : \"None\"}\n`;\n\nreturn [\n  {\n    json: {\n      report: summary\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        180
+      ],
+      "id": "abd48dfa-40ff-4ddb-b9c1-dd0be792cf9f",
+      "name": "Group & Format Report"
+    },
+    {
+      "parameters": {
+        "sendTo": "it.iipc@snsgroups.com",
+        "subject": "Daily Team Summary",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "643c7d2c-580e-4b3e-b89d-f7b4f9171fdb",
+      "name": "Gmail",
+      "webhookId": "165aa6ec-824d-43d1-8b1b-a454e89c57d2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jGudxhQEFO8f4lT3",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a professional email summarizing today's project updates from the team.\n\nEach item contains:\n- Name {{ $('Code').item.json.Name }}\n- Task Status{{ $('Code').item.json['Task Status'] }}\n\nPlease format the report with each team member's name followed by their task status in a clear and readable way. Use bullet points if needed.\n\nAdd a greeting, the current date, and a polite closing.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        640,
+        180
+      ],
+      "id": "21f6756c-ce19-44f7-9c98-710ba598291e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        920,
+        220
+      ],
+      "id": "2c1400ce-05b5-436e-b348-efdd0c98bb20",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "hUfmwZSUqR2Xa04x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Group & Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group & Format Report": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bd07a314-477e-447b-815d-af96c0d0898c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "54e55d4f1f5323985a1903bef2abfe3efd645fac7e882bcf9807b00288d8b8eb"
+  },
+  "id": "adjhBh0Yf46EvTOT",
+  "tags": []
+}
